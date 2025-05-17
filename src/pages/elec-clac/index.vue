@@ -315,25 +315,41 @@ export default {
       // 根据公式计算
       switch (this.formData.level2Formula) {
         case "1": // 差动I段校验
-          result = 0.5 * 1.5 * this.formData.inputValue;
-          result = result * this.formData.multiplier; // 应用倍数
-          this.calculationDetails = `I1 = 0.5 * 1.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
+          {
+            result = 0.5 * 1.5 * this.formData.inputValue;
+            result = result * this.formData.multiplier; // 应用倍数
+            this.calculationDetails = `I1 = 0.5 * 1.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
+            
+            // 更新故障态表格中的Ia值
+            this.faultStateData[0].ia = `${result.toFixed(2)}∠0°A`;
+          }
           break;
         case "2": // 差动II段校验
-          result = 0.5 * this.formData.inputValue;
-          result = result * this.formData.multiplier; // 应用倍数
-          this.calculationDetails = `I2 = 0.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
+          {
+            result = 0.5 * this.formData.inputValue;
+            result = result * this.formData.multiplier; // 应用倍数
+            this.calculationDetails = `I2 = 0.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
+            
+            // 更新故障态表格中的Ia值
+            this.faultStateData[0].ia = `${result.toFixed(2)}∠0°A`;
+          }
           break;
         case "3": // 零序差动校验
-          let i = 0.78 * 0.5 * this.formData.inputValue;
-          let i0 = 1.1 * 0.5 * this.formData.inputValue;
-          result = i; // 使用I值作为结果
-          this.calculationDetails = `I = 0.78 * 0.5 * ${this.formData.inputValue} = ${i.toFixed(2)} A, I0 = 1.1 * 0.5 * ${this.formData.inputValue} = ${i0.toFixed(2)} A`;
+          {
+            let i = 0.78 * 0.5 * this.formData.inputValue;
+            let i0 = 1.1 * 0.5 * this.formData.inputValue;
+            console.log(i, i0)
+            
+            // 更新正常态表格中的Ia值为I
+            this.normalStateData[0].ia = `${i.toFixed(2)}∠0°A`;
+            
+            // 更新故障态表格中的Ia值为I0
+            this.faultStateData[0].ia = `${i0.toFixed(2)}∠0°A`;
+            
+            this.calculationDetails = `I = 0.78 * 0.5 * ${this.formData.inputValue} = ${i.toFixed(2)} A, I0 = 1.1 * 0.5 * ${this.formData.inputValue} = ${i0.toFixed(2)} A`;
+          }
           break;
       }
-      
-      // 更新故障态表格中的Ia值
-      this.faultStateData[0].ia = `${result.toFixed(2)}∠0°A`;
       
       // 显示结果
       this.showResult = true;
@@ -453,11 +469,6 @@ export default {
 .details-content p {
   margin: 8px 0;
   line-height: 1.5;
-}
-
-.highlight-value {
-  color: #f56c6c;
-  font-weight: bold;
 }
 
 .animated-icon {
