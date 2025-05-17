@@ -70,7 +70,7 @@
       
       <el-form :model="formData" label-width="180px" class="input-form" size="medium">
         <!-- 差动保护校验输入框 -->
-        <el-form-item :label="inputLabel" v-if="!showGroundDistanceInputs">
+        <el-form-item :label="inputLabel" v-if="!showGroundDistanceInputs && !showZeroSequenceInputs">
           <el-input 
             v-model.number="formData.inputValue" 
             type="number" 
@@ -127,16 +127,34 @@
           </el-form-item>
         </template>
         
+        <!-- 零序保护校验输入框 -->
+        <template v-if="showZeroSequenceInputs">
+          <el-form-item label="零序过流定值 I01zd">
+            <el-input 
+              v-model.number="formData.zeroSequenceValue" 
+              type="number" 
+              placeholder="请输入零序过流定值"
+              @input="validateZeroSequenceInput"
+            >
+              <template slot="append">A</template>
+            </el-input>
+          </el-form-item>
+        </template>
+        
         <!-- 倍数选择 -->
         <el-form-item label="选定倍数" v-if="showMultiplier">
           <el-radio-group v-model="formData.multiplier">
-            <el-radio :label="0.95" v-if="!showGroundDistanceInputs">0.95</el-radio>
-            <el-radio :label="1.05" v-if="!showGroundDistanceInputs">1.05</el-radio>
-            <el-radio :label="1.2" v-if="!showGroundDistanceInputs">1.2</el-radio>
+            <el-radio :label="0.95" v-if="!showGroundDistanceInputs && !showZeroSequenceInputs">0.95</el-radio>
+            <el-radio :label="1.05" v-if="!showGroundDistanceInputs && !showZeroSequenceInputs">1.05</el-radio>
+            <el-radio :label="1.2" v-if="!showGroundDistanceInputs && !showZeroSequenceInputs">1.2</el-radio>
             
             <el-radio :label="0.95" v-if="showGroundDistanceInputs">0.95</el-radio>
             <el-radio :label="1.05" v-if="showGroundDistanceInputs">1.05</el-radio>
             <el-radio :label="0.7" v-if="showGroundDistanceInputs">0.7</el-radio>
+            
+            <el-radio :label="0.95" v-if="showZeroSequenceInputs">0.95</el-radio>
+            <el-radio :label="1.05" v-if="showZeroSequenceInputs">1.05</el-radio>
+            <el-radio :label="1.2" v-if="showZeroSequenceInputs">1.2</el-radio>
           </el-radio-group>
         </el-form-item>
         
@@ -232,7 +250,8 @@ export default {
       // 一级公式选项
       level1Options: [
         { value: "1", label: "差动保护校验" },
-        { value: "2", label: "接地距离保护校验" }
+        { value: "2", label: "接地距离保护校验" },
+        { value: "3", label: "零序保护校验" }
       ],
       // 二级公式选项（根据一级公式动态变化）
       level2Options: [],
@@ -246,7 +265,9 @@ export default {
         kValue: "",
         phiValue: "",
         iValue: "",
-        zzdValue: ""
+        zzdValue: "",
+        // 零序保护校验所需字段
+        zeroSequenceValue: ""
       },
       // 是否显示结果
       showResult: false,
@@ -295,12 +316,14 @@ export default {
                this.formData.phiValue !== "" && 
                this.formData.iValue !== "" && 
                this.formData.zzdValue !== "";
+      } else if (this.showZeroSequenceInputs) {
+        return this.formData.zeroSequenceValue !== "";
       }
       return this.formData.inputValue !== "";
     },
     // 是否显示倍数选择
     showMultiplier() {
-      return ["1", "2", "4", "5", "6"].includes(this.formData.level2Formula);
+      return ["1", "2", "4", "5", "6", "7", "8", "9", "10"].includes(this.formData.level2Formula);
     },
     // 当前选择的公式标题
     selectedFormulaTitle() {
@@ -312,7 +335,11 @@ export default {
         "3": "零序差动校验",
         "4": "接地I段校验",
         "5": "接地II段校验",
-        "6": "接地III段校验"
+        "6": "接地III段校验",
+        "7": "零序I段校验",
+        "8": "零序II段校验",
+        "9": "零序III段校验",
+        "10": "零序IV段校验"
       };
       
       return formulaTitles[this.formData.level2Formula] || "";
@@ -327,7 +354,11 @@ export default {
         "3": "I＝0.78*0.5*Icdqd0    I0＝1.1＊0.5*Icdqd0",
         "4": "U=(1+K)*I*Zzd",
         "5": "U＝(1+K)*I*Zzd",
-        "6": "U=(1+K)*I*Zzd"
+        "6": "U=(1+K)*I*Zzd",
+        "7": "I＝I01zd",
+        "8": "I＝I01zd",
+        "9": "I＝I01zd",
+        "10": "I＝I01zd"
       };
       
       return formulas[this.formData.level2Formula] || "";
@@ -335,6 +366,10 @@ export default {
     // 是否显示接地距离保护校验的输入框
     showGroundDistanceInputs() {
       return ["4", "5", "6"].includes(this.formData.level2Formula);
+    },
+    // 是否显示零序保护校验的输入框
+    showZeroSequenceInputs() {
+      return ["7", "8", "9", "10"].includes(this.formData.level2Formula);
     }
   },
   methods: {
@@ -355,6 +390,13 @@ export default {
           { value: "4", label: "接地I段校验" },
           { value: "5", label: "接地II段校验" },
           { value: "6", label: "接地III段校验" }
+        ];
+      } else if (this.formData.level1Formula === "3") {
+        this.level2Options = [
+          { value: "7", label: "零序I段校验" },
+          { value: "8", label: "零序II段校验" },
+          { value: "9", label: "零序III段校验" },
+          { value: "10", label: "零序IV段校验" }
         ];
       } else {
         this.level2Options = [];
@@ -378,6 +420,13 @@ export default {
     validateGroundInput(field) {
       if (isNaN(this.formData[field]) || this.formData[field] < 0) {
         this.formData[field] = "";
+      }
+    },
+    
+    // 验证零序保护校验输入
+    validateZeroSequenceInput() {
+      if (isNaN(this.formData.zeroSequenceValue) || this.formData.zeroSequenceValue < 0) {
+        this.formData.zeroSequenceValue = "";
       }
     },
     
@@ -475,6 +524,26 @@ export default {
         
         this.calculationDetails = `${formulaPrefix} = (1 + ${k}) * ${i} * ${zzd} * ${multiplier} = ${voltage.toFixed(2)} V, Ia = ${i} * ${multiplier} = ${(i * multiplier).toFixed(2)} A`;
       }
+      // 零序保护校验计算
+      else if (["7", "8", "9", "10"].includes(this.formData.level2Formula)) {
+        if (!this.canCalculate) {
+          this.$message.error("请输入零序过流定值");
+          return;
+        }
+        
+        const i01zd = this.formData.zeroSequenceValue;
+        const multiplier = this.formData.multiplier;
+        
+        // 计算电流值
+        const current = i01zd * multiplier;
+        
+        // 更新故障态表格中的Ua值和Ia值
+        this.faultStateData[0].ua = "0∠0°V";
+        this.faultStateData[0].ia = `${current.toFixed(2)}∠-78°A`;
+        
+        // 设置计算详情
+        this.calculationDetails = `I = ${i01zd} * ${multiplier} = ${current.toFixed(2)} A`;
+      }
       
       // 显示结果
       this.showResult = true;
@@ -494,6 +563,7 @@ export default {
       this.formData.phiValue = "";
       this.formData.iValue = "";
       this.formData.zzdValue = "";
+      this.formData.zeroSequenceValue = "";
       this.formData.multiplier = 0.95;
       this.showResult = false;
     }
