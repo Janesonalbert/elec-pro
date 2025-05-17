@@ -618,7 +618,7 @@ export default {
               const i0 = 1.1 * 0.5 * this.formData.inputValue;
 
               // 更新正常态表格中的Ia值为I
-              this.normalStateData[0].ia = `${i.toFixed(2)}∠0°A`;
+              this.normalStateData[0].ia = `${i.toFixed(2)}∠90°A`;
               this.normalStateData[0].ib = `0∠-30°A`;
               this.normalStateData[0].ic = `0∠210°A`;
 
