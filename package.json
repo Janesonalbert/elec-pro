@@ -5,36 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint",
-
-    "electron:serve": "vue-cli-service electron:serve",
-    "electron:build": "vue-cli-service electron:build",
-    "postinstall": "electron-builder install-app-deps"
-  },
-  "build": {
-    "appId": "com.yourcompany.yourapp",
-    "productName": "elec-pro",
-    "directories": {
-      "output": "build"
-    },
-    "win": {
-      "icon": "public/icon.ico",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/icon.ico",
-      "uninstallerIcon": "public/icon.ico",
-      "installerHeaderIcon": "public/icon.ico",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
+    "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "core-js": "^3.8.3",
@@ -49,8 +20,6 @@
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
-    "electron": "^36.2.1",
-    "electron-builder": "^26.0.12",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
     "vue-template-compiler": "^2.6.14"
