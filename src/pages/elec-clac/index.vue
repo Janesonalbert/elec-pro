@@ -325,9 +325,9 @@ export default {
         "1": "I1＝0.5*1.5*Icdqd1",
         "2": "I2＝0.5*Icdqd2",
         "3": "I＝0.78*0.5*Icdqd0    I0＝1.1＊0.5*Icdqd0",
-        "4": "U1=(1+K)*I*Zzd1",
-        "5": "U2＝(1+K)*I*Zzd2",
-        "6": "U3=(1+K)*I*Zzd3"
+        "4": "U=(1+K)*I*Zzd",
+        "5": "U＝(1+K)*I*Zzd",
+        "6": "U=(1+K)*I*Zzd"
       };
       
       return formulas[this.formData.level2Formula] || "";
@@ -471,12 +471,7 @@ export default {
         this.faultStateData[0].ia = `${(i * multiplier).toFixed(2)}∠${-phi}°A`;
         
         // 设置计算详情
-        let formulaPrefix = "";
-        switch (this.formData.level2Formula) {
-          case "4": formulaPrefix = "U1"; break;
-          case "5": formulaPrefix = "U2"; break;
-          case "6": formulaPrefix = "U3"; break;
-        }
+        const formulaPrefix = "U";
         
         this.calculationDetails = `${formulaPrefix} = (1 + ${k}) * ${i} * ${zzd} * ${multiplier} = ${voltage.toFixed(2)} V, Ia = ${i} * ${multiplier} = ${(i * multiplier).toFixed(2)} A`;
       }
