@@ -226,10 +226,10 @@
 
         <!-- 相间距离保护校验故障相选择 -->
         <el-form-item label="故障相选择" v-if="showPhaseDistanceInputs">
-          <el-radio-group v-model="formData.faultPhase">
-            <el-radio label="AB">AB</el-radio>
-            <el-radio label="BC">BC</el-radio>
-            <el-radio label="AC">AC</el-radio>
+          <el-radio-group v-model="formData.phaseFaultType">
+            <el-radio label="AB" value="AB">AB</el-radio>
+            <el-radio label="BC" value="BC">BC</el-radio>
+            <el-radio label="AC" value="AC">AC</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -380,7 +380,7 @@ export default {
         phaseIValue: "",
         phaseZzdValue: "",
         multiplier: 0.95,
-        faultPhase: "AB", // 默认选择AB相
+        phaseFaultType: "AB", // 默认选择AB相
       },
       // 正常态数据
       normalStateData: [
@@ -531,11 +531,11 @@ export default {
 
       // 相间距离保护校验公式根据故障相选择变化
       if (this.formData.level2Formula === "13" || this.formData.level2Formula === "14" || this.formData.level2Formula === "15") {
-        if (this.formData.faultPhase === "AB") {
+        if (this.formData.phaseFaultType === "AB") {
           return "Uab＝2＊I＊Zzd   Ua= Ub＝[(Uab/2)²+(57.74/2)²]½  φa＝arctan(Uab/2/28.87)-60°  φb＝-60°-arctan(Ubc/2/28.87)";
-        } else if (this.formData.faultPhase === "BC") {
+        } else if (this.formData.phaseFaultType === "BC") {
           return "Ubc＝2＊I＊Zzd   Ub= Uc＝[(Ubc/2)²+(57.74/2)²]½  φb＝arctan(Ubc/2/28.87)-180°  φc＝180°-arctan(Ubc/2/28.87)";
-        } else if (this.formData.faultPhase === "AC") {
+        } else if (this.formData.phaseFaultType === "AC") {
           return "Uca＝2＊I＊Zzd   Uc= Ua＝[(Uca/2)²+(57.74/2)²]½  φa＝60°-arctan(Uca/2/28.87)  φc＝60°+arctan(Uca/2/28.87)";
         }
       }
@@ -804,13 +804,13 @@ export default {
           return;
         }
 
-        const i = this.formData.phaseCurrentValue;
+        const i = this.formData.phaseIValue;
         const zzd = this.formData.phaseZzdValue;
         const multiplier = this.formData.multiplier;
         const faultType = this.formData.phaseFaultType;
 
         // 计算线电压值
-        const lineVoltage = 2 * i * zzd * multiplier;
+        const lineVoltage = 2 * i * zzd;
 
         // 计算相电压值 (根据公式：Ua = Ub = [(Uab/2)²+(57.74/2)²]½)
         const phaseVoltage = Math.sqrt(
@@ -820,7 +820,7 @@ export default {
         // 计算相角
         let phiA, phiB, phiC;
 
-        switch (faultType) {
+        switch (String(faultType)) {
           case "AB":
             // φa = arctan(Uab/2/28.87)-60°
             phiA = (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI - 60;
@@ -839,7 +839,7 @@ export default {
             this.faultStateData[0].ib = `${(i * multiplier).toFixed(2)}∠130°A`;
             this.faultStateData[0].ic = "0∠120°A";
 
-            this.calculationDetails = `Uab = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+            this.calculationDetails = `Uab = 2 * ${i} * ${zzd} = ${lineVoltage.toFixed(
               2
             )} V, 
               Ua = Ub = [(${lineVoltage.toFixed(
@@ -871,7 +871,7 @@ export default {
             this.faultStateData[0].ib = `${(i * multiplier).toFixed(2)}∠-170°A`;
             this.faultStateData[0].ic = `${(i * multiplier).toFixed(2)}∠10°A`;
 
-            this.calculationDetails = `Ubc = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+            this.calculationDetails = `Ubc = 2 * ${i} * ${zzd} = ${lineVoltage.toFixed(
               2
             )} V, 
               Ub = Uc = [(${lineVoltage.toFixed(
@@ -903,7 +903,7 @@ export default {
             this.faultStateData[0].ib = "0∠-120°A";
             this.faultStateData[0].ic = `${(i * multiplier).toFixed(2)}∠70°A`;
 
-            this.calculationDetails = `Uca = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+            this.calculationDetails = `Uca = 2 * ${i} * ${zzd} = ${lineVoltage.toFixed(
               2
             )} V, 
               Ua = Uc = [(${lineVoltage.toFixed(
@@ -941,6 +941,7 @@ export default {
       this.formData.ptDisconnectionValue = "";
       this.formData.phaseCurrentValue = "";
       this.formData.phaseZzdValue = "";
+      this.formData.phaseIValue = "";
       this.formData.phaseFaultType = "AB";
       this.formData.multiplier = 0.95;
       this.showResult = false;
