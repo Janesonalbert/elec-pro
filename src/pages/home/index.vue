@@ -43,7 +43,7 @@
 
       <!-- 右侧内容区域 - 扩大并添加滚动 -->
       <div class="content-area">
-        <el-card class="content-card" shadow="hover">
+        <div class="content-card" shadow="hover">
           <!-- 内容标题 -->
           <div slot="header" class="content-header">
             <div class="header-left">
@@ -79,7 +79,7 @@
               </keep-alive>
             </transition>
           </div>
-        </el-card>
+        </div>
       </div>
     </div>
 
@@ -272,6 +272,7 @@ export default {
   border-radius: 8px;
   transition: all 0.3s;
   overflow: hidden; /* 确保内容不溢出 */
+  background-color: #fff;
 }
 
 .content-card:hover {
@@ -291,6 +292,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
+  margin-left: 20px;
+  margin-top: 10px;
 }
 
 .header-left {
