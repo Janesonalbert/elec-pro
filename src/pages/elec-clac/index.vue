@@ -84,7 +84,8 @@
           v-if="
             !showGroundDistanceInputs &&
             !showZeroSequenceInputs &&
-            !showPTDisconnectionInputs
+            !showPTDisconnectionInputs &&
+            !showPhaseDistanceInputs
           "
         >
           <el-input
@@ -144,29 +145,53 @@
         </template>
 
         <!-- 零序保护校验输入框 -->
-        <template v-if="showZeroSequenceInputs">
-          <el-form-item label="零序过流定值 I01zd">
+        <el-form-item label="零序过流定值 I01zd" v-if="showZeroSequenceInputs">
+          <el-input
+            v-model.number="formData.zeroSequenceValue"
+            type="number"
+            placeholder="请输入零序过流定值"
+            @input="validateZeroSequenceInput"
+          >
+            <template slot="append">A</template>
+          </el-input>
+        </el-form-item>
+
+        <!-- PT断线保护校验输入框 -->
+        <el-form-item
+          :label="ptDisconnectionLabel"
+          v-if="showPTDisconnectionInputs"
+        >
+          <el-input
+            v-model.number="formData.ptDisconnectionValue"
+            type="number"
+            placeholder="请输入定值"
+            @input="validatePTDisconnectionInput"
+          >
+            <template slot="append">A</template>
+          </el-input>
+        </el-form-item>
+
+        <!-- 相间距离保护校验输入框 -->
+        <template v-if="showPhaseDistanceInputs">
+          <el-form-item label="故障电流大小 I">
             <el-input
-              v-model.number="formData.zeroSequenceValue"
+              v-model.number="formData.phaseIValue"
               type="number"
-              placeholder="请输入零过流定值"
-              @input="validateZeroSequenceInput"
+              placeholder="请输入故障电流大小"
+              @input="validatePhaseDistanceInput('phaseIValue')"
             >
               <template slot="append">A</template>
             </el-input>
           </el-form-item>
-        </template>
 
-        <!-- PT断线相过流保护校验输入框 -->
-        <template v-if="showPTDisconnectionInputs">
-          <el-form-item :label="ptDisconnectionInputLabel">
+          <el-form-item label="相间距离定值 Zzd">
             <el-input
-              v-model.number="formData.ptDisconnectionValue"
+              v-model.number="formData.phaseZzdValue"
               type="number"
-              placeholder="请输入定值"
-              @input="validatePTDisconnectionInput"
+              placeholder="请输入相间距离定值"
+              @input="validatePhaseDistanceInput('phaseZzdValue')"
             >
-              <template slot="append">A</template>
+              <template slot="append">Ω</template>
             </el-input>
           </el-form-item>
         </template>
@@ -174,25 +199,49 @@
         <!-- 倍数选择 -->
         <el-form-item label="选定倍数" v-if="showMultiplier">
           <el-radio-group v-model="formData.multiplier">
-            <el-radio :label="0.95">0.95</el-radio>
-            <el-radio :label="1.05">1.05</el-radio>
-            <el-radio :label="1.2" v-if="!showGroundDistanceInputs"
+            <el-radio :label="0.95" v-if="!showPhaseDistanceInputs"
+              >0.95</el-radio
+            >
+            <el-radio :label="1.05" v-if="!showPhaseDistanceInputs"
+              >1.05</el-radio
+            >
+            <el-radio
+              :label="1.2"
+              v-if="!showPhaseDistanceInputs && !showGroundDistanceInputs"
               >1.2</el-radio
             >
             <el-radio :label="0.7" v-if="showGroundDistanceInputs"
               >0.7</el-radio
             >
+
+            <el-radio :label="0.95" v-if="showPhaseDistanceInputs"
+              >0.95</el-radio
+            >
+            <el-radio :label="1.05" v-if="showPhaseDistanceInputs"
+              >1.05</el-radio
+            >
+            <el-radio :label="0.7" v-if="showPhaseDistanceInputs">0.7</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <!-- 按钮 -->
+        <!-- 相间距离保护校验故障相选择 -->
+        <el-form-item label="故障相选择" v-if="showPhaseDistanceInputs">
+          <el-radio-group v-model="formData.faultPhase">
+            <el-radio label="AB">AB</el-radio>
+            <el-radio label="BC">BC</el-radio>
+            <el-radio label="AC">AC</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- 按钮区域 -->
         <el-form-item>
           <el-button
             type="primary"
             @click="calculateResult"
             :disabled="!canCalculate"
-            >校验</el-button
           >
+            校验计算
+          </el-button>
           <el-button @click="resetForm">重置</el-button>
         </el-form-item>
       </el-form>
@@ -201,8 +250,8 @@
     <!-- 结果展示区域 -->
     <el-card class="result-card" shadow="hover" v-if="showResult">
       <div class="card-title">
-        <i class="el-icon-data-analysis animated-icon"></i>
-        <span>校验结果</span>
+        <i class="el-icon-s-data animated-icon"></i>
+        <span>计算结果</span>
       </div>
 
       <el-divider content-position="center">
@@ -216,10 +265,7 @@
           :data="normalStateData"
           border
           style="width: 100%"
-          :header-cell-style="{
-            background: '#f5f7fa',
-            color: '#606266',
-          }"
+          size="medium"
         >
           <el-table-column
             prop="ua"
@@ -259,10 +305,7 @@
           :data="faultStateData"
           border
           style="width: 100%"
-          :header-cell-style="{
-            background: '#f5f7fa',
-            color: '#606266',
-          }"
+          size="medium"
         >
           <el-table-column
             prop="ua"
@@ -319,6 +362,7 @@ export default {
         { value: "2", label: "接地距离保护校验" },
         { value: "3", label: "零序保护校验" },
         { value: "4", label: "PT断线相过流保护校验" },
+        { value: "5", label: "相间距离保护校验" },
       ],
       // 二级公式选项（根据一级公式动态变化）
       level2Options: [],
@@ -333,10 +377,11 @@ export default {
         zzdValue: "",
         zeroSequenceValue: "",
         ptDisconnectionValue: "",
+        phaseIValue: "",
+        phaseZzdValue: "",
         multiplier: 0.95,
+        faultPhase: "AB", // 默认选择AB相
       },
-      // 是否显示结果
-      showResult: false,
       // 正常态数据
       normalStateData: [
         {
@@ -361,46 +406,85 @@ export default {
       ],
       // 计算详情
       calculationDetails: "",
+      // 是否显示结果
+      showResult: false,
     };
   },
   computed: {
+    // 输入标签
+    inputLabel() {
+      if (this.formData.level2Formula === "1") {
+        return "差动动作电流 Icdqd1";
+      } else if (this.formData.level2Formula === "2") {
+        return "差动动作电流 Icdqd2";
+      } else if (this.formData.level2Formula === "3") {
+        return "差动动作电流 Icdqd0";
+      }
+      return "输入值";
+    },
+    // PT断线保护校验输入标签
+    ptDisconnectionLabel() {
+      if (this.formData.level2Formula === "11") {
+        return "PT断线相过流定值 Iptdx";
+      } else if (this.formData.level2Formula === "12") {
+        return "PT断线零序过流定值 I0ptdx";
+      }
+      return "定值";
+    },
     // 是否可以计算
     canCalculate() {
-      if (["1", "2", "3"].includes(this.formData.level2Formula)) {
-        return this.formData.inputValue !== "";
-      } else if (["4", "5", "6"].includes(this.formData.level2Formula)) {
+      if (this.showGroundDistanceInputs) {
         return (
           this.formData.kValue !== "" &&
           this.formData.phiValue !== "" &&
           this.formData.iValue !== "" &&
           this.formData.zzdValue !== ""
         );
-      } else if (["7", "8", "9", "10"].includes(this.formData.level2Formula)) {
+      } else if (this.showZeroSequenceInputs) {
         return this.formData.zeroSequenceValue !== "";
-      } else if (["11", "12"].includes(this.formData.level2Formula)) {
+      } else if (this.showPTDisconnectionInputs) {
         return this.formData.ptDisconnectionValue !== "";
+      } else if (this.showPhaseDistanceInputs) {
+        return (
+          this.formData.phaseIValue !== "" && this.formData.phaseZzdValue !== ""
+        );
       }
-      return false;
+      return this.formData.inputValue !== "";
     },
-    // 输入标签
-    inputLabel() {
-      if (this.formData.level2Formula === "1") {
-        return "差动I段定值 Icdqd1";
-      } else if (this.formData.level2Formula === "2") {
-        return "差动II段定值 Icdqd2";
-      } else if (this.formData.level2Formula === "3") {
-        return "零序差动定值 Icdqd0";
-      }
-      return "输入值";
+    // 是否显示倍数选择
+    showMultiplier() {
+      return [
+        "1",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+      ].includes(this.formData.level2Formula);
     },
-    // PT断线相过流保护校验输入标签
-    ptDisconnectionInputLabel() {
-      if (this.formData.level2Formula === "11") {
-        return "PT断线相过流定值 Iptdx";
-      } else if (this.formData.level2Formula === "12") {
-        return "PT断线零过流定值 I0ptdx";
-      }
-      return "输入值";
+    // 是否显示接地距离保护校验输入框
+    showGroundDistanceInputs() {
+      return ["4", "5", "6"].includes(this.formData.level2Formula);
+    },
+    // 是否显示零序保护校验输入框
+    showZeroSequenceInputs() {
+      return ["7", "8", "9", "10"].includes(this.formData.level2Formula);
+    },
+    // 是否显示PT断线保护校验输入框
+    showPTDisconnectionInputs() {
+      return ["11", "12"].includes(this.formData.level2Formula);
+    },
+    // 是否显示相间距离保护校验输入框
+    showPhaseDistanceInputs() {
+      return ["13"].includes(this.formData.level2Formula);
     },
     // 当前选择的公式标题
     selectedFormulaTitle() {
@@ -418,7 +502,10 @@ export default {
         9: "零序III段校验",
         10: "零序IV段校验",
         11: "PT断线相过流校验",
-        12: "PT断线零过流校验",
+        12: "PT断线零序过流校验",
+        13: "相间I段校验",
+        14: "相间II段校验",
+        15: "相间III段校验",
       };
 
       return formulaTitles[this.formData.level2Formula] || "";
@@ -442,36 +529,18 @@ export default {
         12: "I0pt＝I0ptdx",
       };
 
+      // 相间距离保护校验公式根据故障相选择变化
+      if (this.formData.level2Formula === "13") {
+        if (this.formData.faultPhase === "AB") {
+          return "Uab＝2＊I＊Zzd   Ua= Ub＝[(Uab/2)²+(57.74/2)²]½  φa＝arctan(Uab/2/28.87)-60°  φb＝-60°-arctan(Ubc/2/28.87)";
+        } else if (this.formData.faultPhase === "BC") {
+          return "Ubc＝2＊I＊Zzd   Ub= Uc＝[(Ubc/2)²+(57.74/2)²]½  φb＝arctan(Ubc/2/28.87)-180°  φc＝180°-arctan(Ubc/2/28.87)";
+        } else if (this.formData.faultPhase === "AC") {
+          return "Uca＝2＊I＊Zzd   Uc= Ua＝[(Uca/2)²+(57.74/2)²]½  φa＝60°-arctan(Uca/2/28.87)  φc＝60°+arctan(Uca/2/28.87)";
+        }
+      }
+
       return formulas[this.formData.level2Formula] || "";
-    },
-    // 是否显示倍数选择
-    showMultiplier() {
-      return [
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "11",
-        "12",
-      ].includes(this.formData.level2Formula);
-    },
-    // 是否显示接地距离保护校验的输入框
-    showGroundDistanceInputs() {
-      return ["4", "5", "6"].includes(this.formData.level2Formula);
-    },
-    // 是否显示零序保护校验的输入框
-    showZeroSequenceInputs() {
-      return ["7", "8", "9", "10"].includes(this.formData.level2Formula);
-    },
-    // 是否显示PT断线相过流保护校验的输入框
-    showPTDisconnectionInputs() {
-      return ["11", "12"].includes(this.formData.level2Formula);
     },
   },
   methods: {
@@ -505,6 +574,8 @@ export default {
           { value: "11", label: "PT断线相过流校验" },
           { value: "12", label: "PT断线零序过流校验" },
         ];
+      } else if (this.formData.level1Formula === "5") {
+        this.level2Options = [{ value: "13", label: "相间距离保护校验" }];
       } else {
         this.level2Options = [];
       }
@@ -517,7 +588,7 @@ export default {
       this.resetTableData();
     },
 
-    // 添加重置表格数据的方法
+    // 重置表格数据
     resetTableData() {
       // 重置正常态数据
       this.normalStateData = [
@@ -568,7 +639,7 @@ export default {
       }
     },
 
-    // 验证PT断线相过流保护校验输入
+    // 验证PT断线保护校验输入
     validatePTDisconnectionInput() {
       if (
         isNaN(this.formData.ptDisconnectionValue) ||
@@ -578,12 +649,19 @@ export default {
       }
     },
 
+    // 验证相间距离保护校验输入
+    validatePhaseDistanceInput(field) {
+      if (isNaN(this.formData[field]) || this.formData[field] < 0) {
+        this.formData[field] = "";
+      }
+    },
+
     // 计算结果
     calculateResult() {
       // 差动保护校验计算
       if (["1", "2", "3"].includes(this.formData.level2Formula)) {
         if (!this.formData.inputValue) {
-          this.$message.error("请输入数值");
+          this.$message.error("请输入差动动作电流");
           return;
         }
 
@@ -618,9 +696,7 @@ export default {
               const i0 = 1.1 * 0.5 * this.formData.inputValue;
 
               // 更新正常态表格中的Ia值为I
-              this.normalStateData[0].ia = `${i.toFixed(2)}∠90°A`;
-              this.normalStateData[0].ib = `0∠-30°A`;
-              this.normalStateData[0].ic = `0∠210°A`;
+              this.normalStateData[0].ia = `${i.toFixed(2)}∠0°A`;
 
               // 更新故障态表格中的Ia值为I0
               this.faultStateData[0].ia = `${i0.toFixed(2)}∠0°A`;
@@ -695,11 +771,6 @@ export default {
         // 计算电流值
         const current = ptValue * multiplier;
 
-        // 首先重置故障态表格中的所有电流值
-        this.faultStateData[0].ia = "0∠0°A";
-        this.faultStateData[0].ib = "0∠-120°A";
-        this.faultStateData[0].ic = "0∠120°A";
-
         if (this.formData.level2Formula === "11") {
           // PT断线相过流校验 - 更新故障态表格中的Ia、Ib、Ic值
           this.faultStateData[0].ia = `${current.toFixed(2)}∠0°A`;
@@ -715,12 +786,132 @@ export default {
           this.faultStateData[0].ia = `${current.toFixed(2)}∠0°A`;
           this.faultStateData[0].ib = `0∠-120°A`;
           this.faultStateData[0].ic = `0∠120°A`;
-          // Ib和Ic保持默认值 (已在上面重置)
 
           // 设置计算详情
           this.calculationDetails = `I0pt = ${ptValue} * ${multiplier} = ${current.toFixed(
             2
           )} A`;
+        }
+      }
+      // 相间距离保护校验计算
+      else if (["13"].includes(this.formData.level2Formula)) {
+        if (!this.canCalculate) {
+          this.$message.error("请填写所有输入项");
+          return;
+        }
+
+        const i = this.formData.phaseCurrentValue;
+        const zzd = this.formData.phaseZzdValue;
+        const multiplier = this.formData.multiplier;
+        const faultType = this.formData.phaseFaultType;
+
+        // 计算线电压值
+        const lineVoltage = 2 * i * zzd * multiplier;
+
+        // 计算相电压值 (根据公式：Ua = Ub = [(Uab/2)²+(57.74/2)²]½)
+        const phaseVoltage = Math.sqrt(
+          Math.pow(lineVoltage / 2, 2) + Math.pow(57.74 / 2, 2)
+        );
+
+        // 计算相角
+        let phiA, phiB, phiC;
+
+        switch (faultType) {
+          case "AB":
+            // φa = arctan(Uab/2/28.87)-60°
+            phiA = (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI - 60;
+            // φb = -60°-arctan(Ubc/2/28.87)
+            phiB = -60 - (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI;
+
+            // 更新故障态表格
+            this.faultStateData[0].ua = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiA.toFixed(1)}°V`;
+            this.faultStateData[0].ub = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiB.toFixed(1)}°V`;
+            this.faultStateData[0].uc = "57.74∠120°V";
+            this.faultStateData[0].ia = `${(i * multiplier).toFixed(2)}∠-50°A`;
+            this.faultStateData[0].ib = `${(i * multiplier).toFixed(2)}∠130°A`;
+            this.faultStateData[0].ic = "0∠120°A";
+
+            this.calculationDetails = `Uab = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+              2
+            )} V, 
+              Ua = Ub = [(${lineVoltage.toFixed(
+                2
+              )}/2)² + (57.74/2)²]½ = ${phaseVoltage.toFixed(2)} V, 
+              φa = arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) - 60° = ${phiA.toFixed(1)}°, 
+              φb = -60° - arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) = ${phiB.toFixed(1)}°`;
+            break;
+
+          case "BC":
+            // φb = arctan(Ubc/2/28.87)-180°
+            phiB = (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI - 180;
+            // φc = 180°-arctan(Ubc/2/28.87)
+            phiC = 180 - (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI;
+
+            // 更新故障态表格
+            this.faultStateData[0].ua = "57.74∠0°V";
+            this.faultStateData[0].ub = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiB.toFixed(1)}°V`;
+            this.faultStateData[0].uc = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiC.toFixed(1)}°V`;
+            this.faultStateData[0].ia = "0∠0°A";
+            this.faultStateData[0].ib = `${(i * multiplier).toFixed(2)}∠-170°A`;
+            this.faultStateData[0].ic = `${(i * multiplier).toFixed(2)}∠10°A`;
+
+            this.calculationDetails = `Ubc = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+              2
+            )} V, 
+              Ub = Uc = [(${lineVoltage.toFixed(
+                2
+              )}/2)² + (57.74/2)²]½ = ${phaseVoltage.toFixed(2)} V, 
+              φb = arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) - 180° = ${phiB.toFixed(1)}°, 
+              φc = 180° - arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) = ${phiC.toFixed(1)}°`;
+            break;
+
+          case "AC":
+            // φa = 60°-arctan(Uca/2/28.87)
+            phiA = 60 - (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI;
+            // φc = 60°+arctan(Uca/2/28.87)
+            phiC = 60 + (Math.atan(lineVoltage / 2 / 28.87) * 180) / Math.PI;
+
+            // 更新故障态表格
+            this.faultStateData[0].ua = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiA.toFixed(1)}°V`;
+            this.faultStateData[0].ub = "57.74∠-120°V";
+            this.faultStateData[0].uc = `${(phaseVoltage * multiplier).toFixed(
+              2
+            )}∠${phiC.toFixed(1)}°V`;
+            this.faultStateData[0].ia = `${(i * multiplier).toFixed(2)}∠-110°A`;
+            this.faultStateData[0].ib = "0∠-120°A";
+            this.faultStateData[0].ic = `${(i * multiplier).toFixed(2)}∠70°A`;
+
+            this.calculationDetails = `Uca = 2 * ${i} * ${zzd} * ${multiplier} = ${lineVoltage.toFixed(
+              2
+            )} V, 
+              Ua = Uc = [(${lineVoltage.toFixed(
+                2
+              )}/2)² + (57.74/2)²]½ = ${phaseVoltage.toFixed(2)} V, 
+              φa = 60° - arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) = ${phiA.toFixed(1)}°, 
+              φc = 60° + arctan(${lineVoltage.toFixed(
+                2
+              )}/2/28.87) = ${phiC.toFixed(1)}°`;
+            break;
         }
       }
 
@@ -744,6 +935,9 @@ export default {
       this.formData.zzdValue = "";
       this.formData.zeroSequenceValue = "";
       this.formData.ptDisconnectionValue = "";
+      this.formData.phaseCurrentValue = "";
+      this.formData.phaseZzdValue = "";
+      this.formData.phaseFaultType = "AB";
       this.formData.multiplier = 0.95;
       this.showResult = false;
     },
@@ -864,3 +1058,4 @@ export default {
   border-radius: 3px;
 }
 </style>
+
