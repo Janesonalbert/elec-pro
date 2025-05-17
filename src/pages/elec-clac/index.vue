@@ -484,7 +484,7 @@ export default {
     },
     // 是否显示相间距离保护校验输入框
     showPhaseDistanceInputs() {
-      return ["13"].includes(this.formData.level2Formula);
+      return ["13", "14", "15"].includes(this.formData.level2Formula);
     },
     // 当前选择的公式标题
     selectedFormulaTitle() {
@@ -530,7 +530,7 @@ export default {
       };
 
       // 相间距离保护校验公式根据故障相选择变化
-      if (this.formData.level2Formula === "13") {
+      if (this.formData.level2Formula === "13" || this.formData.level2Formula === "14" || this.formData.level2Formula === "15") {
         if (this.formData.faultPhase === "AB") {
           return "Uab＝2＊I＊Zzd   Ua= Ub＝[(Uab/2)²+(57.74/2)²]½  φa＝arctan(Uab/2/28.87)-60°  φb＝-60°-arctan(Ubc/2/28.87)";
         } else if (this.formData.faultPhase === "BC") {
@@ -575,7 +575,11 @@ export default {
           { value: "12", label: "PT断线零序过流校验" },
         ];
       } else if (this.formData.level1Formula === "5") {
-        this.level2Options = [{ value: "13", label: "相间距离保护校验" }];
+        this.level2Options = [
+          { value: "13", label: "相间I段校验" },
+          { value: "14", label: "相间II段校验" },
+          { value: "15", label: "相间III段校验" },
+        ];
       } else {
         this.level2Options = [];
       }
@@ -794,7 +798,7 @@ export default {
         }
       }
       // 相间距离保护校验计算
-      else if (["13"].includes(this.formData.level2Formula)) {
+      else if (["13", "14", "15"].includes(this.formData.level2Formula)) {
         if (!this.canCalculate) {
           this.$message.error("请填写所有输入项");
           return;
