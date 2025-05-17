@@ -51,12 +51,12 @@
         </el-form>
       </div>
     </el-card>
-
+    
     <!-- 公式展示和输入区域 -->
     <el-card class="formula-input-card" shadow="hover" v-if="formData.level2Formula">
       <div class="card-title">
         <i class="el-icon-edit animated-icon"></i>
-        <span>公式计算</span>
+        <span>{{ selectedFormulaTitle }}</span>
       </div>
       
       <el-divider content-position="center">
@@ -64,12 +64,13 @@
       </el-divider>
       
       <div class="formula-display">
-        <div class="formula-title">{{ selectedFormulaTitle }}</div>
+        <div class="formula-title">公式：</div>
         <div class="formula-expression">{{ selectedFormula }}</div>
       </div>
       
       <el-form :model="formData" label-width="180px" class="input-form" size="medium">
-        <el-form-item :label="inputLabel">
+        <!-- 差动保护校验输入框 -->
+        <el-form-item :label="inputLabel" v-if="!showGroundDistanceInputs">
           <el-input 
             v-model.number="formData.inputValue" 
             type="number" 
@@ -80,35 +81,87 @@
           </el-input>
         </el-form-item>
         
-        <!-- 倍数选择 (仅对差动I段和II段) -->
+        <!-- 接地距离保护校验输入框 -->
+        <template v-if="showGroundDistanceInputs">
+          <el-form-item label="零序补偿系数 K">
+            <el-input 
+              v-model.number="formData.kValue" 
+              type="number" 
+              placeholder="请输入零序补偿系数"
+              @input="validateGroundInput('kValue')"
+            >
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item label="正序灵敏角 φ">
+            <el-input 
+              v-model.number="formData.phiValue" 
+              type="number" 
+              placeholder="请输入正序灵敏角"
+              @input="validateGroundInput('phiValue')"
+            >
+              <template slot="append">°</template>
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item label="故障电流大小 I">
+            <el-input 
+              v-model.number="formData.iValue" 
+              type="number" 
+              placeholder="请输入故障电流大小"
+              @input="validateGroundInput('iValue')"
+            >
+              <template slot="append">A</template>
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item label="相间距离定值 Zzd">
+            <el-input 
+              v-model.number="formData.zzdValue" 
+              type="number" 
+              placeholder="请输入相间距离定值"
+              @input="validateGroundInput('zzdValue')"
+            >
+              <template slot="append">Ω</template>
+            </el-input>
+          </el-form-item>
+        </template>
+        
+        <!-- 倍数选择 -->
         <el-form-item label="选定倍数" v-if="showMultiplier">
           <el-radio-group v-model="formData.multiplier">
-            <el-radio :label="0.95">0.95</el-radio>
-            <el-radio :label="1.05">1.05</el-radio>
-            <el-radio :label="1.2">1.2</el-radio>
+            <el-radio :label="0.95" v-if="!showGroundDistanceInputs">0.95</el-radio>
+            <el-radio :label="1.05" v-if="!showGroundDistanceInputs">1.05</el-radio>
+            <el-radio :label="1.2" v-if="!showGroundDistanceInputs">1.2</el-radio>
+            
+            <el-radio :label="0.95" v-if="showGroundDistanceInputs">0.95</el-radio>
+            <el-radio :label="1.05" v-if="showGroundDistanceInputs">1.05</el-radio>
+            <el-radio :label="0.7" v-if="showGroundDistanceInputs">0.7</el-radio>
           </el-radio-group>
         </el-form-item>
         
+        <!-- 按钮区域 -->
         <el-form-item>
           <el-button 
             type="primary" 
-            @click="calculateResult" 
-            :disabled="!formData.inputValue"
-            icon="el-icon-check"
-            class="calculate-button"
+            class="process-button" 
+            @click="calculateResult"
+            :disabled="!canCalculate"
           >
-            校验计算
+            <i class="el-icon-check"></i> 校验计算
           </el-button>
           <el-button 
-            @click="resetForm" 
-            icon="el-icon-refresh"
+            type="info" 
+            plain 
+            class="reset-button" 
+            @click="resetForm"
           >
-            重置
+            <i class="el-icon-refresh"></i> 重置
           </el-button>
         </el-form-item>
       </el-form>
     </el-card>
-
+    
     <!-- 结果展示区域 -->
     <el-card class="result-card" shadow="hover" v-if="showResult">
       <div class="card-title">
@@ -121,18 +174,8 @@
       </el-divider>
       
       <div class="result-area">
-        <el-alert
-          title="计算完成"
-          type="success"
-          :closable="false"
-          show-icon
-          style="margin-bottom: 15px"
-        >
-          校验计算已完成，请查看下方结果。
-        </el-alert>
-        
         <!-- 正常态表格 -->
-        <div class="table-title">正常态</div>
+        <div class="table-title">正常态：</div>
         <el-table
           :data="normalStateData"
           border
@@ -142,7 +185,6 @@
             color: '#606266',
           }"
         >
-          <el-table-column prop="name" label="参数" width="100" align="center"></el-table-column>
           <el-table-column prop="ua" label="Ua" align="center"></el-table-column>
           <el-table-column prop="ub" label="Ub" align="center"></el-table-column>
           <el-table-column prop="uc" label="Uc" align="center"></el-table-column>
@@ -152,7 +194,7 @@
         </el-table>
         
         <!-- 故障态表格 -->
-        <div class="table-title" style="margin-top: 20px">故障态</div>
+        <div class="table-title" style="margin-top: 20px;">故障态：</div>
         <el-table
           :data="faultStateData"
           border
@@ -162,27 +204,19 @@
             color: '#606266',
           }"
         >
-          <el-table-column prop="name" label="参数" width="100" align="center"></el-table-column>
           <el-table-column prop="ua" label="Ua" align="center"></el-table-column>
           <el-table-column prop="ub" label="Ub" align="center"></el-table-column>
           <el-table-column prop="uc" label="Uc" align="center"></el-table-column>
-          <el-table-column prop="ia" label="Ia" align="center">
-            <template slot-scope="scope">
-              <span :class="{ 'highlight-value': scope.row.name === '幅值/相位' }">{{ scope.row.ia }}</span>
-            </template>
-          </el-table-column>
+          <el-table-column prop="ia" label="Ia" align="center"></el-table-column>
           <el-table-column prop="ib" label="Ib" align="center"></el-table-column>
           <el-table-column prop="ic" label="Ic" align="center"></el-table-column>
         </el-table>
         
         <!-- 计算详情 -->
         <div class="calculation-details" v-if="calculationDetails">
-          <div class="details-title">计算详情</div>
+          <div class="details-title">计算详情：</div>
           <div class="details-content">
-            <p><strong>使用公式：</strong>{{ selectedFormula }}</p>
-            <p><strong>输入参数：</strong>{{ inputLabel }} = {{ formData.inputValue }} A</p>
-            <p v-if="showMultiplier"><strong>选定倍数：</strong>{{ formData.multiplier }}</p>
-            <p><strong>计算结果：</strong>{{ calculationDetails }}</p>
+            <p>{{ calculationDetails }}</p>
           </div>
         </div>
       </div>
@@ -195,24 +229,32 @@ export default {
   name: "ElecClac",
   data() {
     return {
+      // 一级公式选项
       level1Options: [
         { value: "1", label: "差动保护校验" },
-        { value: "2", label: "接地距离保护校验" },
-        { value: "3", label: "相间距离保护校验" },
-        { value: "4", label: "零序保护校验" },
-        { value: "5", label: "听线相过流保护校验" }
+        { value: "2", label: "接地距离保护校验" }
       ],
+      // 二级公式选项（根据一级公式动态变化）
       level2Options: [],
+      // 表单数据
       formData: {
         level1Formula: "",
         level2Formula: "",
         inputValue: "",
-        multiplier: 0.95
+        multiplier: 0.95,
+        // 接地距离保护校验所需字段
+        kValue: "",
+        phiValue: "",
+        iValue: "",
+        zzdValue: ""
       },
+      // 是否显示结果
       showResult: false,
+      // 计算详情
+      calculationDetails: "",
+      // 正常态数据
       normalStateData: [
         {
-          name: "幅值/相位",
           ua: "57.74∠0°V",
           ub: "57.74∠-120°V",
           uc: "57.74∠120°V",
@@ -221,24 +263,44 @@ export default {
           ic: "0∠120°A"
         }
       ],
+      // 故障态数据
       faultStateData: [
         {
-          name: "幅值/相位",
           ua: "57.74∠0°V",
           ub: "57.74∠-120°V",
           uc: "57.74∠120°V",
-          ia: "0∠0°A", // 将被计算结果替换
+          ia: "0∠0°A",
           ib: "0∠-120°A",
           ic: "0∠120°A"
         }
-      ],
-      calculationDetails: ""
+      ]
     };
   },
   computed: {
+    // 输入标签
+    inputLabel() {
+      if (this.formData.level2Formula === "1") {
+        return "差动动作电流 Icdqd1";
+      } else if (this.formData.level2Formula === "2") {
+        return "差动动作电流 Icdqd2";
+      } else if (this.formData.level2Formula === "3") {
+        return "差动动作电流 Icdqd0";
+      }
+      return "输入值";
+    },
+    // 是否可以计算
+    canCalculate() {
+      if (this.showGroundDistanceInputs) {
+        return this.formData.kValue !== "" && 
+               this.formData.phiValue !== "" && 
+               this.formData.iValue !== "" && 
+               this.formData.zzdValue !== "";
+      }
+      return this.formData.inputValue !== "";
+    },
     // 是否显示倍数选择
     showMultiplier() {
-      return this.formData.level2Formula === "1" || this.formData.level2Formula === "2";
+      return ["1", "2", "4", "5", "6"].includes(this.formData.level2Formula);
     },
     // 当前选择的公式标题
     selectedFormulaTitle() {
@@ -247,7 +309,10 @@ export default {
       const formulaTitles = {
         "1": "差动I段校验",
         "2": "差动II段校验",
-        "3": "零序差动校验"
+        "3": "零序差动校验",
+        "4": "接地I段校验",
+        "5": "接地II段校验",
+        "6": "接地III段校验"
       };
       
       return formulaTitles[this.formData.level2Formula] || "";
@@ -259,22 +324,17 @@ export default {
       const formulas = {
         "1": "I1＝0.5*1.5*Icdqd1",
         "2": "I2＝0.5*Icdqd2",
-        "3": "I＝0.78*0.5*Icdqd0    I0＝1.1＊0.5*Icdqd0"
+        "3": "I＝0.78*0.5*Icdqd0    I0＝1.1＊0.5*Icdqd0",
+        "4": "U1=(1+K)*I*Zzd1",
+        "5": "U2＝(1+K)*I*Zzd2",
+        "6": "U3=(1+K)*I*Zzd3"
       };
       
       return formulas[this.formData.level2Formula] || "";
     },
-    // 输入框标签
-    inputLabel() {
-      if (!this.formData.level2Formula) return "";
-      
-      const labels = {
-        "1": "差动动作电流Icdqd1",
-        "2": "差动动作电流Icdqd2",
-        "3": "差动动作电流Icdqd0"
-      };
-      
-      return labels[this.formData.level2Formula] || "";
+    // 是否显示接地距离保护校验的输入框
+    showGroundDistanceInputs() {
+      return ["4", "5", "6"].includes(this.formData.level2Formula);
     }
   },
   methods: {
@@ -290,6 +350,12 @@ export default {
           { value: "2", label: "差动II段校验" },
           { value: "3", label: "零序差动校验" }
         ];
+      } else if (this.formData.level1Formula === "2") {
+        this.level2Options = [
+          { value: "4", label: "接地I段校验" },
+          { value: "5", label: "接地II段校验" },
+          { value: "6", label: "接地III段校验" }
+        ];
       } else {
         this.level2Options = [];
       }
@@ -297,58 +363,122 @@ export default {
     
     // 处理二级公式变化
     handleLevel2Change() {
-      this.formData.inputValue = "";
       this.showResult = false;
+      this.resetForm();
     },
     
     // 验证输入
     validateInput() {
-      if (isNaN(this.formData.inputValue) || this.formData.inputValue <= 0) {
+      if (isNaN(this.formData.inputValue) || this.formData.inputValue < 0) {
         this.formData.inputValue = "";
+      }
+    },
+    
+    // 验证接地距离保护校验输入
+    validateGroundInput(field) {
+      if (isNaN(this.formData[field]) || this.formData[field] < 0) {
+        this.formData[field] = "";
       }
     },
     
     // 计算结果
     calculateResult() {
-      let result = 0;
+      // 重置表格数据
+      this.normalStateData = [
+        {
+          ua: "57.74∠0°V",
+          ub: "57.74∠-120°V",
+          uc: "57.74∠120°V",
+          ia: "0∠0°A",
+          ib: "0∠-120°A",
+          ic: "0∠120°A"
+        }
+      ];
       
-      // 根据公式计算
-      switch (this.formData.level2Formula) {
-        case "1": // 差动I段校验
-          {
-            result = 0.5 * 1.5 * this.formData.inputValue;
-            result = result * this.formData.multiplier; // 应用倍数
-            this.calculationDetails = `I1 = 0.5 * 1.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
-            
-            // 更新故障态表格中的Ia值
-            this.faultStateData[0].ia = `${result.toFixed(2)}∠0°A`;
-          }
-          break;
-        case "2": // 差动II段校验
-          {
-            result = 0.5 * this.formData.inputValue;
-            result = result * this.formData.multiplier; // 应用倍数
-            this.calculationDetails = `I2 = 0.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${result.toFixed(2)} A`;
-            
-            // 更新故障态表格中的Ia值
-            this.faultStateData[0].ia = `${result.toFixed(2)}∠0°A`;
-          }
-          break;
-        case "3": // 零序差动校验
-          {
-            let i = 0.78 * 0.5 * this.formData.inputValue;
-            let i0 = 1.1 * 0.5 * this.formData.inputValue;
-            console.log(i, i0)
-            
-            // 更新正常态表格中的Ia值为I
-            this.normalStateData[0].ia = `${i.toFixed(2)}∠0°A`;
-            
-            // 更新故障态表格中的Ia值为I0
-            this.faultStateData[0].ia = `${i0.toFixed(2)}∠0°A`;
-            
-            this.calculationDetails = `I = 0.78 * 0.5 * ${this.formData.inputValue} = ${i.toFixed(2)} A, I0 = 1.1 * 0.5 * ${this.formData.inputValue} = ${i0.toFixed(2)} A`;
-          }
-          break;
+      this.faultStateData = [
+        {
+          ua: "57.74∠0°V",
+          ub: "57.74∠-120°V",
+          uc: "57.74∠120°V",
+          ia: "0∠0°A",
+          ib: "0∠-120°A",
+          ic: "0∠120°A"
+        }
+      ];
+      
+      // 差动保护校验计算
+      if (["1", "2", "3"].includes(this.formData.level2Formula)) {
+        if (this.formData.inputValue === "") {
+          this.$message.error("请输入差动动作电流值");
+          return;
+        }
+        
+        switch (this.formData.level2Formula) {
+          case "1": // 差动I段校验
+            {
+              const result = 0.5 * 1.5 * this.formData.inputValue;
+              const finalResult = result * this.formData.multiplier; // 应用倍数
+              this.calculationDetails = `I1 = 0.5 * 1.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${finalResult.toFixed(2)} A`;
+              
+              // 更新故障态表格中的Ia值
+              this.faultStateData[0].ia = `${finalResult.toFixed(2)}∠0°A`;
+            }
+            break;
+          case "2": // 差动II段校验
+            {
+              const result = 0.5 * this.formData.inputValue;
+              const finalResult = result * this.formData.multiplier; // 应用倍数
+              this.calculationDetails = `I2 = 0.5 * ${this.formData.inputValue} * ${this.formData.multiplier} = ${finalResult.toFixed(2)} A`;
+              
+              // 更新故障态表格中的Ia值
+              this.faultStateData[0].ia = `${finalResult.toFixed(2)}∠0°A`;
+            }
+            break;
+          case "3": // 零序差动校验
+            {
+              const i = 0.78 * 0.5 * this.formData.inputValue;
+              const i0 = 1.1 * 0.5 * this.formData.inputValue;
+              
+              // 更新正常态表格中的Ia值为I
+              this.normalStateData[0].ia = `${i.toFixed(2)}∠0°A`;
+              
+              // 更新故障态表格中的Ia值为I0
+              this.faultStateData[0].ia = `${i0.toFixed(2)}∠0°A`;
+              
+              this.calculationDetails = `I = 0.78 * 0.5 * ${this.formData.inputValue} = ${i.toFixed(2)} A, I0 = 1.1 * 0.5 * ${this.formData.inputValue} = ${i0.toFixed(2)} A`;
+            }
+            break;
+        }
+      }
+      // 接地距离保护校验计算
+      else if (["4", "5", "6"].includes(this.formData.level2Formula)) {
+        if (!this.canCalculate) {
+          this.$message.error("请填写所有输入项");
+          return;
+        }
+        
+        const k = this.formData.kValue;
+        const i = this.formData.iValue;
+        const zzd = this.formData.zzdValue;
+        const phi = this.formData.phiValue;
+        const multiplier = this.formData.multiplier;
+        
+        // 计算电压值
+        const voltage = (1 + k) * i * zzd * multiplier;
+        
+        // 更新故障态表格中的Ua值和Ia值
+        this.faultStateData[0].ua = `${voltage.toFixed(2)}∠0°V`;
+        this.faultStateData[0].ia = `${(i * multiplier).toFixed(2)}∠${-phi}°A`;
+        
+        // 设置计算详情
+        let formulaPrefix = "";
+        switch (this.formData.level2Formula) {
+          case "4": formulaPrefix = "U1"; break;
+          case "5": formulaPrefix = "U2"; break;
+          case "6": formulaPrefix = "U3"; break;
+        }
+        
+        this.calculationDetails = `${formulaPrefix} = (1 + ${k}) * ${i} * ${zzd} * ${multiplier} = ${voltage.toFixed(2)} V, Ia = ${i} * ${multiplier} = ${(i * multiplier).toFixed(2)} A`;
       }
       
       // 显示结果
@@ -365,6 +495,10 @@ export default {
     // 重置表单
     resetForm() {
       this.formData.inputValue = "";
+      this.formData.kValue = "";
+      this.formData.phiValue = "";
+      this.formData.iValue = "";
+      this.formData.zzdValue = "";
       this.formData.multiplier = 0.95;
       this.showResult = false;
     }
@@ -399,17 +533,13 @@ export default {
   z-index: 1; /* 添加z-index确保悬停卡片在上层 */
 }
 
-.result-card {
-  margin-bottom: 30px; /* 添加底部外边距 */
-}
-
 .card-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
+  margin-bottom: 10px;
   color: #409eff;
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
 }
 
 .selection-area,
@@ -419,36 +549,28 @@ export default {
 }
 
 .formula-title {
-  font-size: 16px;
   font-weight: bold;
   margin-bottom: 10px;
-  color: #303133;
 }
 
 .formula-expression {
-  font-family: 'Courier New', monospace;
   background-color: #f5f7fa;
-  padding: 10px;
+  padding: 15px;
   border-radius: 4px;
-  margin-bottom: 20px;
+  font-family: "Courier New", monospace;
   font-size: 16px;
-  color: #409eff;
-  border-left: 4px solid #409eff;
+  color: #606266;
+  margin-bottom: 20px;
 }
 
 .input-form {
   margin-top: 20px;
 }
 
-.calculate-button {
-  margin-right: 10px;
-}
-
 .table-title {
-  font-size: 16px;
   font-weight: bold;
   margin-bottom: 10px;
-  color: #303133;
+  color: #606266;
 }
 
 .calculation-details {
