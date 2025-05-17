@@ -89,6 +89,7 @@
       :visible.sync="helpDialogVisible"
       width="50%"
       center
+      :modal="false"
     >
       <div class="help-content">
         <div v-if="activeIndex === '1'">
