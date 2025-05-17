@@ -149,7 +149,7 @@
             <el-input
               v-model.number="formData.zeroSequenceValue"
               type="number"
-              placeholder="请输入零序过流定值"
+              placeholder="请输入零过流定值"
               @input="validateZeroSequenceInput"
             >
               <template slot="append">A</template>
@@ -398,7 +398,7 @@ export default {
       if (this.formData.level2Formula === "11") {
         return "PT断线相过流定值 Iptdx";
       } else if (this.formData.level2Formula === "12") {
-        return "PT断线零序过流定值 I0ptdx";
+        return "PT断线零过流定值 I0ptdx";
       }
       return "输入值";
     },
@@ -418,7 +418,7 @@ export default {
         9: "零序III段校验",
         10: "零序IV段校验",
         11: "PT断线相过流校验",
-        12: "PT断线零序过流校验",
+        12: "PT断线零过流校验",
       };
 
       return formulaTitles[this.formData.level2Formula] || "";
